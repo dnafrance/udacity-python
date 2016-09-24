@@ -43,7 +43,8 @@ def remove_unpaid(data):
     return paid_data
 
 def within_one_week(join_date, engagement_date):
-    return (engagement_date - join_date).days < 7
+    time_delta = (engagement_date - join_date).days
+    return time_delta < 7 and time_delta >= 0
 
 enrollments = linecount(filelist[0])
 # Clean up data types
@@ -67,6 +68,10 @@ for engagement in daily_engagement:
     engagement['total_minutes_visited']=int(float(engagement['total_minutes_visited']))
     engagement['lessons_completed']=int(float(engagement['lessons_completed']))
     engagement['projects_completed']=int(float(engagement['projects_completed']))
+    # Add flag for visit
+    engagement['has_visited'] = 0
+    if engagement['num_courses_visited']>0:
+        engagement['has_visited']=1
 
 unique_daily_engagement = uniquevals(daily_engagement,'account_key')
 print filelist[1],len(daily_engagement),len(unique_daily_engagement),"\n"
@@ -138,3 +143,79 @@ for engagement in paid_engagement:
     if within_one_week(join_date,engagement_date):
         first_week.append(engagement)
 print '# Paid engagement in first week', len(first_week)
+
+# Get average minutes spent per account
+from collections import defaultdict
+
+engagement_by_account = defaultdict(list)
+for engagement in first_week:
+    account_key = engagement['account_key']
+    engagement_by_account[account_key].append(engagement)
+
+# total_minutes_by_account = {}
+# for account_key, engagement in engagement_by_account.items():
+#     total_minutes = 0
+#     for row in engagement:
+#         total_minutes += row['total_minutes_visited']
+#     total_minutes_by_account[account_key] = total_minutes
+#
+# total_minutes = total_minutes_by_account.values()
+
+def totals_by_account(parameter):
+    total_values_by_account = {}
+    for account_key, engagement in engagement_by_account.items():
+        total_values = 0
+        for row in engagement:
+            total_values += row[parameter]
+        total_values_by_account[account_key] = total_values
+    return total_values_by_account
+
+total_minutes_by_account = totals_by_account('total_minutes_visited')
+#total_minutes = total_minutes_by_account.values()
+total_lessons_by_account = totals_by_account('lessons_completed')
+#total_lessons = total_lessons_by_account.values()
+
+def print_data(data):
+    import numpy as np
+    max_data = np.max(data.values())
+    print '\nAverage:',np.mean(data.values()), \
+            '\nStandard deviation:',np.std(data.values()),\
+            '\nMaximum:',np.max(data.values()), \
+            '\nMinimum:',np.min(data.values())
+    return max_data
+
+# Print minutes used
+max_data = print_data(total_minutes_by_account)
+
+for account_key, minutes in total_minutes_by_account.items():
+    if minutes == max_data:
+        print len(engagement_by_account[account_key])
+
+# Get lessons completed
+print_data(total_lessons_by_account)
+
+# Get days the student visited the classroom
+total_visits_by_account = totals_by_account('has_visited')
+print_data(total_visits_by_account)
+
+# Split first week engagement into 2 groups - passed and not-passed
+subway_project_lesson_keys = ['746169184','3176718735']
+passing_engagement =[]
+non_passing_engagement = []
+passing_submission = defaultdict(list)
+for submission in project_submissions:
+    lesson_key = submission['lesson_key']
+    rating = submission['assigned_rating']
+    if (rating =='PASSED' or rating == 'DISTINCTION') \
+            and lesson_key in subway_project_lesson_keys:
+        account_key = submission['account_key']
+        passing_submission[account_key].append(submission['account_key'])
+print 'Passing submissions', len(passing_submission)
+for engagement in first_week:
+    if engagement['account_key'] in passing_submission:
+        passing_engagement.append(engagement)
+    else:
+        non_passing_engagement.append(engagement)
+
+print 'Passing',len(passing_engagement)
+print 'Non-passing',len(non_passing_engagement)
