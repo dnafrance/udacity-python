@@ -35,6 +35,16 @@ def remove_udacity_accounts(data):
             non_udacity_data.append(data_point)
     return non_udacity_data
 
+def remove_unpaid(data):
+    paid_data = []
+    for data_point in data:
+        if data_point['account_key'] in paid_students:
+            paid_data.append(data_point)
+    return paid_data
+
+def within_one_week(join_date, engagement_date):
+    return (engagement_date - join_date).days < 7
+
 enrollments = linecount(filelist[0])
 # Clean up data types
 for enrolment in enrollments:
@@ -91,9 +101,9 @@ non_udacity_enrollments = remove_udacity_accounts(enrollments)
 non_udacity_engagement = remove_udacity_accounts(daily_engagement)
 non_udacity_submissions = remove_udacity_accounts(project_submissions)
 
-print len(non_udacity_enrollments)
-print len(non_udacity_engagement)
-print len(non_udacity_submissions)
+print 'Non udacity enrollments:',len(non_udacity_enrollments)
+print 'Non udacity engagement:',len(non_udacity_engagement)
+print 'Non udacity submissions:',len(non_udacity_submissions)
 
 
 # Get students who haven't canceled yet or stayed enrolled > 7 days
@@ -108,3 +118,23 @@ for enrolment in non_udacity_enrollments:
                 enrolment_date > paid_students[account_key]:
             paid_students[account_key] = enrolment_date
 print '# Paid students',len(paid_students)
+
+# Get engagement for first week
+
+paid_enrollments = remove_unpaid(non_udacity_enrollments)
+paid_engagement = remove_unpaid(non_udacity_engagement)
+paid_submissions = remove_unpaid(non_udacity_submissions)
+
+print 'Paid enrollments:',len(paid_enrollments)
+print 'Paid engagement:',len(paid_engagement)
+print 'Paid submissions:',len(paid_submissions)
+
+first_week = []
+
+for engagement in paid_engagement:
+    account_key = engagement['account_key']
+    join_date = paid_students[account_key]
+    engagement_date = engagement['utc_date']
+    if within_one_week(join_date,engagement_date):
+        first_week.append(engagement)
+print '# Paid engagement in first week', len(first_week)
