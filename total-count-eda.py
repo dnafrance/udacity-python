@@ -100,7 +100,7 @@ for enrolment in enrollments:
     student = enrolment['account_key']
     if student not in unique_daily_engagement \
             and enrolment['join_date'] != enrolment['cancel_date']:
-        print enrolment
+        #print enrolment
         problem_students += 1
 print '\nProblem students:',problem_students
 
